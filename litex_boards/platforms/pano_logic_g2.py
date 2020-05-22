@@ -105,7 +105,12 @@ class Platform(XilinxPlatform):
     default_clk_name   = "clk125"
     default_clk_period = 1e9/125e6
 
-    def __init__(self, programmer="impact", device="xc6slx150"):
-        XilinxPlatform.__init__(self, "xc6slx150-2-fgg484", _io)
+    variant = {
+        "xc6slx100": "xc6slx100-2-fgg484",
+        "xc6slx150": "xc6slx150-2-fgg484"
+    }
+    def __init__(self, programmer="impact", variant="xc6slx150"):
+        device = self.variant[variant]
+        XilinxPlatform.__init__(self, device, _io)
         self.add_platform_command("""CONFIG VCCAUX="2.5";""")
         self.add_period_constraint(self.lookup_request("clk125", loose=True), 1e9/125e6)
