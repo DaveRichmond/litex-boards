@@ -14,6 +14,8 @@ from litex.soc.cores.led import LedChaser
 from litedram.modules import MT41K128M16
 from litedram.phy import s7ddrphy
 
+from litevideo.terminal.core import Terminal
+
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq):
         self.clock_domains.cd_sys       = ClockDomain()
@@ -22,8 +24,9 @@ class _CRG(Module):
         self.clock_domains.cd_sys4x_dqs = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200    = ClockDomain()
         self.clock_domains.cd_eth       = ClockDomain()
+        #self.clock_domains.cd_vga       = ClockDomain(reset_less=True)
 
-        self.submodules.pll = pll = S7PLL(speedgrade=-1)
+        self.submodules.pll = pll = S7MMCM(speedgrade=-1)
         self.comb += pll.reset.eq(~platform.request("cpu_reset"))
         pll.register_clkin(platform.request("clk50"), 50e6)
         pll.create_clkout(self.cd_sys, sys_clk_freq)
@@ -32,6 +35,7 @@ class _CRG(Module):
         pll.create_clkout(self.cd_sys4x_dqs, 4*sys_clk_freq, phase=90)
         pll.create_clkout(self.cd_clk200, 200e6)
         pll.create_clkout(self.cd_eth, 25e6)
+        #pll.create_clkout(self.cd_vga, 25e6)
 
         self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_clk200)
         #self.comb += platform.request("eth_ref_clk").eq(self.cd_eth.clk)
@@ -58,6 +62,26 @@ class BaseSoC(SoCCore):
                     l2_cache_min_data_width = kwargs.get("min_l2_data_width", 128),
                     l2_cache_reverse = True)
 
+class VGASoC(BaseSoC):
+    mem_map = {
+        "terminal": 0x30000000,
+    }
+    mem_map.update(BaseSoC.mem_map)
+    def __init__(self, **kwargs):
+        BaseSoC.__init__(self, **kwargs)
+
+        self.submodules.terminal = terminal = Terminal()
+        self.add_wb_slave(self.mem_map["terminal"], self.terminal.bus)
+        self.add_memory_region("terminal", self.mem_map["terminal"], 0x10000)
+        vga = self.platform.request("vga_out", 0)
+        self.comb += [
+            vga.vsync_n.eq(terminal.vsync),
+            vga.hsync_n.eq(terminal.hsync),
+            vga.r.eq(terminal.red[3:8]),
+            vga.g.eq(terminal.green[2:8]),
+            vga.b.eq(terminal.blue[3:8]),
+        ]
+
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on QMTech Artix 7 DDR3")
     parser.add_argument("--build", action="store_true", help="build bitstream")
@@ -66,9 +90,11 @@ def main():
     soc_sdram_args(parser)
     vivado_build_args(parser)
     parser.add_argument("--with-ethernet", action="store_true", help="Enable ethernet")
+    parser.add_argument("--with-vga", action="store_true", help="Enable VGA support")
     args = parser.parse_args()
 
-    soc = BaseSoC(with_ethernet=args.with_ethernet, **soc_sdram_argdict(args))
+    soc_class = VGASoC if args.with_vga else BaseSoC
+    soc = soc_class(with_ethernet=args.with_ethernet, **soc_sdram_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build(**vivado_build_argdict(args), run=args.build)
     if args.load:

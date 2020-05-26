@@ -73,6 +73,14 @@ _io = [
             Subsignal("rx", Pins("T15")),
             IOStandard("LVCMOS33")),
 
+    ("vga_out", 0,
+            Subsignal("hsync_n", Pins("G1")),
+            Subsignal("vsync_n", Pins("G2")),
+            Subsignal("r", Pins("N2 M4 N3 K2 L4")),
+            Subsignal("g", Pins("K3 H3 H4 J3 L2 H5")),
+            Subsignal("b", Pins("L3 K1 J1 H2 H1")),
+            IOStandard("LVCMOS33")),
+
 ]
 
 class Platform(XilinxPlatform):
