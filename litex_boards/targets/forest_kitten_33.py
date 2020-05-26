@@ -7,9 +7,8 @@ import os
 import argparse
 
 from migen import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from litex_boards.platforms import pano_logic_g2
+from litex_boards.platforms import forest_kitten_33
 
 from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
@@ -19,24 +18,20 @@ from litex.soc.cores.led import LedChaser
 # CRG ----------------------------------------------------------------------------------------------
 
 class _CRG(Module):
-    def __init__(self, platform, clk_freq):
+    def __init__(self, platform, sys_clk_freq):
         self.clock_domains.cd_sys    = ClockDomain()
 
         # # #
 
-        # Take Ethernet PHY out of reset to enable clk125 (25MHz otherwise).
-        gmii_rst_n = platform.request("gmii_rst_n")
-        self.comb += gmii_rst_n.eq(1)
-
-        self.submodules.pll = pll = S6PLL(speedgrade=-2)
-        pll.register_clkin(platform.request("clk125"), 125e6)
-        pll.create_clkout(self.cd_sys, clk_freq)
+        self.submodules.pll = pll = USMMCM(speedgrade=-2)
+        pll.register_clkin(platform.request("clk200"), 200e6)
+        pll.create_clkout(self.cd_sys, sys_clk_freq)
 
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=int(50e6), **kwargs):
-        platform = pano_logic_g2.Platform()
+    def __init__(self, sys_clk_freq=int(125e6), **kwargs):
+        platform = forest_kitten_33.Platform()
 
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
@@ -46,14 +41,14 @@ class BaseSoC(SoCCore):
 
         # Leds -------------------------------------------------------------------------------------
         self.submodules.leds = LedChaser(
-            pads         = Cat(*[platform.request("user_led", i) for i in range(3)]),
+            pads         = Cat(*[platform.request("user_led", i) for i in range(7)]),
             sys_clk_freq = sys_clk_freq)
         self.add_csr("leds")
 
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC on Pano Logic G2")
+    parser = argparse.ArgumentParser(description="LiteX SoC on Forest Kitten 33")
     parser.add_argument("--build", action="store_true", help="Build bitstream")
     parser.add_argument("--load",  action="store_true", help="Load bitstream")
     builder_args(parser)
