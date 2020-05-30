@@ -59,6 +59,9 @@ def main():
     parser.add_argument("--load", action="store_true", help="Load bitstream")
     builder_args(parser)
     soc_sdram_args(parser)
+    # fix defaults for small device
+    parser.set_defaults(integrated_rom_size=20480)
+    parser.set_defaults(l2_size=1024)
     args = parser.parse_args()
 
     soc = BaseSoC(**soc_sdram_argdict(args))
