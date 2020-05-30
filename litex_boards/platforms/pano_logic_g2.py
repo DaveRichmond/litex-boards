@@ -9,13 +9,14 @@
 
 from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform
+from litex.build.openocd import OpenOCD
 
 # IOs ----------------------------------------------------------------------------------------------
 
 _io = [
     # clock / reset
     ("clk125",    0, Pins("Y13"),  IOStandard("LVCMOS33")),
-    ("cpu_reset", 0, Pins("AB14"), IOStandard("LVCMOS33")),
+    ("rst_n",     0, Pins("AB14"), IOStandard("LVCMOS33")),
 
     # led
     ("user_led", 0, Pins("E12"),  IOStandard("LVCMOS33")),
@@ -23,7 +24,7 @@ _io = [
     ("user_led", 2, Pins("F13"),  IOStandard("LVCMOS33")),
 
     # btn
-    ("user_sw", 0, Pins("H12"), IOStandard("LVCMOS33")),
+    ("user_btn_n", 0, Pins("H12"), IOStandard("LVCMOS33")),
 
     # serial
     ("serial", 0, # hdmi
@@ -33,7 +34,7 @@ _io = [
     ),
 
     # serial
-    ("serial", 0, # dvi
+    ("serial", 1, # dvi
         Subsignal("tx", Pins("C14")),
         Subsignal("rx", Pins("C17")),
         IOStandard("LVCMOS33")
@@ -97,9 +98,30 @@ _io = [
         Subsignal("cke", Pins("D2"), IOStandard("SSTL18_II")),
         Subsignal("odt", Pins("J6"), IOStandard("SSTL18_II")),
     ),
-    # Ethernet phy reset (clk125 is 25 Mhz instead of 125 Mhz if reset is active)
-    # See https://github.com/tomverbeure/panologic-g2#fpga-external-clocking-architecture
-    ("gmii_rst_n", 0, Pins("R11"), IOStandard("LVCMOS33")),
+
+    # ethernet
+    ("eth_rst_n",  0, Pins("R11"), IOStandard("LVCMOS33")),
+    ("eth_clocks", 0,
+        Subsignal("tx",  Pins("Y11")),
+        Subsignal("gtx", Pins("AA12")),
+        Subsignal("rx",  Pins("AB11")),
+        IOStandard("LVCMOS33")
+    ),
+    ("eth", 0,
+        Subsignal("rst_n",   Pins("R11")),
+        Subsignal("int_n",   Pins("AA4")),
+        Subsignal("mdio",    Pins("AA2")),
+        Subsignal("mdc",     Pins("AB6")),
+        Subsignal("rx_dv",   Pins("Y7")),
+        Subsignal("rx_er",   Pins("Y8")),
+        Subsignal("rx_data", Pins("Y3 Y4 R9 R7 V9 R8 U9 Y9")),
+        Subsignal("tx_en",   Pins("AA8")),
+        Subsignal("tx_er",   Pins("AB8")),
+        Subsignal("tx_data", Pins("AB2 AB3 AB4 AB7 AB9 AB10 T7 Y10")),
+        Subsignal("col",     Pins("V7")),
+        Subsignal("crs",     Pins("W4")),
+        IOStandard("LVCMOS33")
+    ),
 
 ]
 
@@ -109,7 +131,12 @@ class Platform(XilinxPlatform):
     default_clk_name   = "clk125"
     default_clk_period = 1e9/125e6
 
-    def __init__(self, programmer="impact", device="xc6slx150"):
-        XilinxPlatform.__init__(self, "xc6slx150-2-fgg484", _io)
+    def __init__(self, revision="c"):
+        assert revision in ["b", "c"]
+        device = {"b": "xc6slx150-2-fgg484", "c": "xc6slx100-2-fgg484"}[revision]
+        XilinxPlatform.__init__(self, device, _io)
         self.add_platform_command("""CONFIG VCCAUX="2.5";""")
         self.add_period_constraint(self.lookup_request("clk125", loose=True), 1e9/125e6)
+
+    def create_programmer(self):
+        return OpenOCD("openocd_xc6_ft232.cfg")
