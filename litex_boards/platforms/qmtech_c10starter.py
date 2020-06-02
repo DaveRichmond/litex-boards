@@ -10,6 +10,13 @@ _io = [
         Subsignal("rx", Pins("AA22")),
         IOStandard("3.3-V LVTTL")),
 
+    ("spiflash", 0,
+        Subsignal("cs_n", Pins("E2")),
+        Subsignal("clk", Pins("K2")),
+        Subsignal("mosi", Pins("D1")),
+        Subsignal("miso", Pins("K1")),
+        IOStandard("3.3-V LVTTL")),
+
     ("user_led", 0, Pins("W17"), IOStandard("3.3-V LVTTL")),
     ("user_led", 1, Pins("Y17"), IOStandard("3.3-V LVTTL")),
 
@@ -33,6 +40,25 @@ _io = [
         Subsignal("dq", Pins("AB9 AA9 AB8 AA8 AB7 AA7 AB5 AA5",
                              "W10 Y10 V11 V12 Y13 W13 V14 W15")),
         Subsignal("dm", Pins("AB4 Y8")),
+        IOStandard("3.3-V LVTTL")),
+
+    ("eth_ref_clk", 0, Pins("J22"), IOStandard("3.3-V LVTTL")),
+    ("eth_clocks", 0,
+        Subsignal("tx", Pins("U21")),
+        Subsignal("rx", Pins("D22")),
+        IOStandard("3.3-V LVTTL")),
+    ("eth", 0,
+        Subsignal("rst_n", Pins("P21")),
+        Subsignal("mdio", Pins("Y22")),
+        Subsignal("mdc", Pins("Y21")),
+        Subsignal("rx_dv", Pins("B21")),
+        Subsignal("rx_er", Pins("H21")),
+        Subsignal("rx_data", Pins("B22 C21 C22 D21 E21 E22 F21 F22")),
+        Subsignal("tx_en", Pins("M21")),
+        Subsignal("tx_er", Pins("W22")),
+        Subsignal("tx_data", Pins("M22 P22 R21 R22 U22 V21 V22 W21")),
+        Subsignal("col", Pins("H22")),
+        Subsignal("crs", Pins("J21")),
         IOStandard("3.3-V LVTTL")),
 ]
 

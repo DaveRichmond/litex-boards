@@ -7,12 +7,12 @@ _io = [
 
     ("spiflash4x", 0, 
         Subsignal("cs_n", Pins("L12")),
-        Subsignal("clk", Pins("E8")),
+        Subsignal("clk", Pins("M15")),
         Subsignal("dq", Pins("J13", "J14", "K15", "K16")),
         IOStandard("LVCMOS33")),
     ("spiflash", 0,
         Subsignal("cs_n", Pins("L12")),
-        Subsignal("clk", Pins("E8")),
+        Subsignal("clk", Pins("M15")),
         Subsignal("mosi", Pins("J13")),
         Subsignal("miso", Pins("J14")),
         Subsignal("wp", Pins("K15")),
@@ -81,6 +81,24 @@ _io = [
             Subsignal("b", Pins("L3 K1 J1 H2 H1")),
             IOStandard("LVCMOS33")),
 
+    ("eth_ref_clk", 0, Pins("B2"), IOStandard("LVCMOS33")),
+    ("eth_clocks", 0, 
+            Subsignal("tx", Pins("A4")),
+            Subsignal("rx", Pins("F5")),
+            IOStandard("LVCMOS33")),
+    ("eth", 0,
+            Subsignal("rst_n", Pins("C4")),
+            Subsignal("mdio", Pins("G5")),
+            Subsignal("mdc", Pins("G4")),
+            Subsignal("rx_dv", Pins("F3")),
+            Subsignal("rx_er", Pins("B1")),
+            Subsignal("rx_data", Pins("F4 E1 F2 E5 D3 E3 D1 E2")),
+            Subsignal("tx_en", Pins("C2")),
+            Subsignal("tx_er", Pins("C7")),
+            Subsignal("tx_data", Pins("C3 D4 A3 B4 A5 D5 D6 C6")),
+            Subsignal("col", Pins("C1")),
+            Subsignal("crs", Pins("A2")),
+            IOStandard("LVCMOS33")),
 ]
 
 class Platform(XilinxPlatform):
@@ -94,6 +112,11 @@ class Platform(XilinxPlatform):
             ["write_cfgmem -force -format bin -interface spix4 -size 16 "
              "-loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bit"]
         self.add_platform_command("set_property INTERNAL_VREF 0.675 [get_iobanks 15]")
+        self.add_platform_command("set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets eth_clocks_tx_IBUF]")
+        # to allow litevideo to build...
+        self.toolchain.pre_synthesis_commands = \
+            ["set_param synth.elaboration.rodinMoreOptions "
+             "{{rt::set_parameter dissolveMemorySizeLimit 71168}}"]
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
