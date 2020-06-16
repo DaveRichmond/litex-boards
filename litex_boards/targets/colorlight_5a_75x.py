@@ -7,14 +7,14 @@
 #
 # 1) SoC with regular UART and optional Ethernet connected to the CPU:
 # Connect a USB/UART to J19: TX of the FPGA is DATA_LED-, RX of the FPGA is KEY+.
-# ./colorlight_5a_75b.py --revision=7.0 (or 6.1) (--with-ethernet to add Ethernet capability)
+# ./colorlight_5a_75x.py --revision=7.0 (or 6.1) (--with-ethernet to add Ethernet capability)
 # Note: on revision 6.1, add --uart-baudrate=9600 to lower the baudrate.
-# ./colorlight_5a_75b.py --load
+# ./colorlight_5a_75x.py --load
 # You should see the LiteX BIOS and be able to interact with it.
 #
 # 2) SoC with UART in crossover mode over Etherbone:
-# ./colorlight_5a_75b.py --revision=7.0 (or 6.1) --uart-name=crossover --with-etherbone --csr-csv=csr.csv
-# ./colorlight_5a_75b.py --load
+# ./colorlight_5a_75x.py --revision=7.0 (or 6.1) --uart-name=crossover --with-etherbone --csr-csv=csr.csv
+# ./colorlight_5a_75x.py --load
 # ping 192.168.1.50
 # Get and install wishbone tool from: https://github.com/litex-hub/wishbone-utils/releases
 # wishbone-tool --ethernet-host 192.168.1.50 --server terminal --csr-csv csr.csv
@@ -26,9 +26,12 @@
 # - Place a 15K resistor between J4 pin 3 and J4 pin 4.
 # - Place a 1.5K resistor between J4 pin 1 and J4 pin 3.
 # - Connect USB DP (Green) to J4 pin 3, USB DN (White) to J4 pin 2.
-# ./colorlight_5a_75b.py --revision=7.0 --uart-name=usb_acm
-# ./colorlight_5a_75b.py --load
+# ./colorlight_5a_75x.py --revision=7.0 --uart-name=usb_acm
+# ./colorlight_5a_75x.py --load
 # You should see the LiteX BIOS and be able to interact with it.
+#
+# Note that you can also use a 5A-75E board:
+# ./colorlight_5a_75x.py --board=5a-75e --revision=7.1
 #
 # Disclaimer: SoC 2) is still a Proof of Concept with large timings violations on the IP/UDP and
 # Etherbone stack that need to be optimized. It was initially just used to validate the reversed
@@ -43,7 +46,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from litex.build.io import DDROutput
 
-from litex_boards.platforms import colorlight_5a_75b
+from litex_boards.platforms import colorlight_5a_75b, colorlight_5a_75e
 
 from litex.build.lattice.trellis import trellis_args, trellis_argdict
 
@@ -92,8 +95,14 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, revision, with_ethernet=False, with_etherbone=False, sys_clk_freq=60e6, **kwargs):
-        platform     = colorlight_5a_75b.Platform(revision=revision)
+    def __init__(self, board, revision, with_ethernet=False, with_etherbone=False, sys_clk_freq=60e6, **kwargs):
+        board = board.lower()
+        assert board in ["5a-75b", "5a-75e"]
+        if board == "5a-75b":
+            platform = colorlight_5a_75b.Platform(revision=revision)
+        elif board == "5a-75e":
+            platform = colorlight_5a_75e.Platform(revision=revision)
+
         if with_etherbone:
             sys_clk_freq = int(125e6)
 
@@ -138,6 +147,7 @@ def main():
     trellis_args(parser)
     parser.add_argument("--build",          action="store_true",     help="Build bitstream")
     parser.add_argument("--load",           action="store_true",     help="Load bitstream")
+    parser.add_argument("--board",          default="5a-75b",        help="Board type: 5a-75b (default) or 5a-75e")
     parser.add_argument("--revision",       default="7.0", type=str, help="Board revision 7.0 (default) or 6.1")
     parser.add_argument("--with-ethernet",  action="store_true",     help="Enable Ethernet support")
     parser.add_argument("--with-etherbone", action="store_true",     help="Enable Etherbone support")
@@ -146,10 +156,10 @@ def main():
     args = parser.parse_args()
 
     assert not (args.with_ethernet and args.with_etherbone)
-    soc = BaseSoC(revision=args.revision,
+    soc = BaseSoC(board=args.board, revision=args.revision,
         with_ethernet  = args.with_ethernet,
         with_etherbone = args.with_etherbone,
-        sys_clk_freq = args.sys_clk_freq,
+        sys_clk_freq   = args.sys_clk_freq,
         **soc_core_argdict(args))
     builder = Builder(soc, **builder_argdict(args))
     builder.build(**trellis_argdict(args), run=args.build)

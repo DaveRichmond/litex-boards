@@ -4,6 +4,7 @@
 # License: BSD
 
 import os
+import sys
 import argparse
 
 from migen import *
@@ -17,8 +18,9 @@ from litex.soc.cores.clock import *
 from litex.soc.integration.soc_core import *
 from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
+from litex.soc.cores.led import LedChaser
 
-from litedram.modules import MT41K64M16, MT41K128M16, MT41K256M16
+from litedram.modules import MT41K64M16, MT41K128M16, MT41K256M16, MT41K512M16
 from litedram.phy import ECP5DDRPHY
 
 # _CRG ---------------------------------------------------------------------------------------------
@@ -85,12 +87,17 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, revision = "0.2", device = "25F", sdram_device = "MT41K64M16",
+    def __init__(self, revision="0.2", device="25F", sdram_device="MT41K64M16",
                  sys_clk_freq=int(48e6), toolchain="trellis", **kwargs):
         platform = orangecrab.Platform(revision=revision, device=device ,toolchain=toolchain)
 
         # Serial -----------------------------------------------------------------------------------
-        platform.add_extension(orangecrab.feather_serial)
+        if kwargs["uart_name"] == "usb_acm":
+            # FIXME: do proper install of ValentyUSB.
+            os.system("git clone https://github.com/gregdavill/valentyusb -b hw_cdc_eptri")
+            sys.path.append("valentyusb")
+        else:
+            platform.add_extension(orangecrab.feather_serial)
 
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, clk_freq=sys_clk_freq, **kwargs)
@@ -102,10 +109,10 @@ class BaseSoC(SoCCore):
         # DDR3 SDRAM -------------------------------------------------------------------------------
         if not self.integrated_main_ram_size:
             available_sdram_modules = {
-                'MT41K64M16': MT41K64M16,
-                'MT41K128M16': MT41K128M16,
-                'MT41K256M16': MT41K256M16,
-#                'MT41K512M16': MT41K512M16
+                "MT41K64M16":  MT41K64M16,
+                "MT41K128M16": MT41K128M16,
+                "MT41K256M16": MT41K256M16,
+                "MT41K512M16": MT41K512M16,
             }
             sdram_module = available_sdram_modules.get(sdram_device)
 
@@ -124,11 +131,18 @@ class BaseSoC(SoCCore):
                 l2_cache_reverse        = True
             )
 
+        # Leds -------------------------------------------------------------------------------------
+        self.submodules.leds = LedChaser(
+            pads         = Cat(*[platform.request("user_led", i) for i in range(3)]),
+            sys_clk_freq = sys_clk_freq)
+        self.add_csr("leds")
+
 # Build --------------------------------------------------------------------------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on OrangeCrab")
     parser.add_argument("--build", action="store_true", help="Build bitstream")
+    parser.add_argument("--load",  action="store_true", help="Load bitstream")
     parser.add_argument("--toolchain", default="trellis", help="Gateware toolchain to use, trellis (default) or diamond")
     builder_args(parser)
     soc_sdram_args(parser)
@@ -137,17 +151,25 @@ def main():
     parser.add_argument("--revision",     default="0.2",        help="Board Revision {0.1, 0.2} (default=0.2)")
     parser.add_argument("--device",       default="25F",        help="ECP5 device (default=25F)")
     parser.add_argument("--sdram-device", default="MT41K64M16", help="ECP5 device (default=MT41K64M16)")
+    parser.add_argument("--with-spi-sdcard", action="store_true", help="Enable SPI-mode SDCard support")
     args = parser.parse_args()
 
-    soc = BaseSoC(toolchain=args.toolchain,
-                  revision=args.revision,
-                  device=args.device,
-                  sdram_device=args.sdram_device,
-                  sys_clk_freq=int(float(args.sys_clk_freq)),
-                  **soc_sdram_argdict(args))
+    soc = BaseSoC(
+        toolchain    = args.toolchain,
+        revision     = args.revision,
+        device       = args.device,
+        sdram_device = args.sdram_device,
+        sys_clk_freq = int(float(args.sys_clk_freq)),
+        **soc_sdram_argdict(args))
+    if args.with_spi_sdcard:
+        soc.add_spi_sdcard()
     builder = Builder(soc, **builder_argdict(args))
     builder_kargs = trellis_argdict(args) if args.toolchain == "trellis" else {}
     builder.build(**builder_kargs, run=args.build)
+
+    if args.load:
+        prog = soc.platform.create_programmer()
+        prog.load_bitstream(os.path.join(builder.gateware_dir, soc.build_name + ".bit"))
 
 if __name__ == "__main__":
     main()
