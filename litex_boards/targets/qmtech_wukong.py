@@ -3,8 +3,7 @@
 #
 # This file is part of LiteX-Boards.
 #
-# Copyright (c) 2015-2019 Florent Kermarrec <florent@enjoy-digital.fr>
-# Copyright (c) 2020 Antmicro <www.antmicro.com>
+# Copyright (c) 2020 Shinken Sanada <sanadashinken@gmail.com>
 # SPDX-License-Identifier: BSD-2-Clause
 
 import os
@@ -12,7 +11,7 @@ import argparse
 
 from migen import *
 
-from litex_boards.platforms import arty
+from litex_boards.platforms import qmtech_wukong
 from litex.build.xilinx.vivado import vivado_build_args, vivado_build_argdict
 
 from litex.soc.cores.clock import *
@@ -39,14 +38,14 @@ class _CRG(Module):
 
         # # #
 
-        self.submodules.pll = pll = S7PLL(speedgrade=-1)
+        self.submodules.pll = pll = S7PLL(speedgrade=-2)
         self.comb += pll.reset.eq(~platform.request("cpu_reset") | self.rst)
-        pll.register_clkin(platform.request("clk100"), 100e6)
+        pll.register_clkin(platform.request("clk50"), 50e6)
         pll.create_clkout(self.cd_sys,       sys_clk_freq)
         pll.create_clkout(self.cd_sys4x,     4*sys_clk_freq)
         pll.create_clkout(self.cd_sys4x_dqs, 4*sys_clk_freq, phase=90)
-        pll.create_clkout(self.cd_idelay,    200e6)
-        pll.create_clkout(self.cd_eth,       25e6)
+        pll.create_clkout(self.cd_idelay,    2*sys_clk_freq)
+        pll.create_clkout(self.cd_eth,       sys_clk_freq)
 
         self.submodules.idelayctrl = S7IDELAYCTRL(self.cd_idelay)
 
@@ -55,13 +54,13 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, variant="a7-35", toolchain="vivado", sys_clk_freq=int(100e6), with_ethernet=False, with_etherbone=False, ident_version=True, **kwargs):
-        platform = arty.Platform(variant=variant, toolchain=toolchain)
+    def __init__(self, sys_clk_freq=int(100e6), with_ethernet=False, with_etherbone=False, **kwargs):
+        platform = qmtech_wukong.Platform()
 
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, sys_clk_freq,
-            ident          = "LiteX SoC on Arty A7",
-            ident_version  = ident_version,
+            ident          = "LiteX SoC on QMTECH Wukong Board",
+            ident_version  = True,
             **kwargs)
 
         # CRG --------------------------------------------------------------------------------------
@@ -104,17 +103,14 @@ class BaseSoC(SoCCore):
 # Build --------------------------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="LiteX SoC on Arty A7")
-    parser.add_argument("--toolchain",        default="vivado",     help="Toolchain use to build (default: vivado)")
-    parser.add_argument("--build",            action="store_true",  help="Build bitstream")
-    parser.add_argument("--load",             action="store_true",  help="Load bitstream")
-    parser.add_argument("--variant",          default="a7-35",      help="Board variant: a7-35 (default) or a7-100")
-    parser.add_argument("--sys-clk-freq",     default=100e6,        help="System clock frequency (default: 100MHz)")
-    parser.add_argument("--with-ethernet",    action="store_true",  help="Enable Ethernet support")
-    parser.add_argument("--with-etherbone",   action="store_true",  help="Enable Etherbone support")
-    parser.add_argument("--with-spi-sdcard",  action="store_true",  help="Enable SPI-mode SDCard support")
-    parser.add_argument("--with-sdcard",      action="store_true",  help="Enable SDCard support")
-    parser.add_argument("--no-ident-version", action="store_false", help="Disable build time output")
+    parser = argparse.ArgumentParser(description="LiteX SoC on QMTECH Wukong Board")
+    parser.add_argument("--build",           action="store_true", help="Build bitstream")
+    parser.add_argument("--load",            action="store_true", help="Load bitstream")
+    parser.add_argument("--sys-clk-freq",    default=100e6,       help="System clock frequency (default: 100MHz)")
+    parser.add_argument("--with-ethernet",   action="store_true", help="Enable Ethernet support")
+    parser.add_argument("--with-etherbone",  action="store_true", help="Enable Etherbone support")
+    parser.add_argument("--with-spi-sdcard", action="store_true", help="Enable SPI-mode SDCard support")
+    parser.add_argument("--with-sdcard",     action="store_true", help="Enable SDCard support")
     builder_args(parser)
     soc_sdram_args(parser)
     vivado_build_args(parser)
@@ -122,23 +118,20 @@ def main():
 
     assert not (args.with_ethernet and args.with_etherbone)
     soc = BaseSoC(
-        variant        = args.variant,
-        toolchain      = args.toolchain,
         sys_clk_freq   = int(float(args.sys_clk_freq)),
         with_ethernet  = args.with_ethernet,
         with_etherbone = args.with_etherbone,
-        ident_version  = args.no_ident_version,
         **soc_sdram_argdict(args)
     )
     assert not (args.with_spi_sdcard and args.with_sdcard)
-    soc.platform.add_extension(arty._sdcard_pmod_io)
+    soc.platform.add_extension(qmtech_wukong._sdcard_pmod_io)
     if args.with_spi_sdcard:
         soc.add_spi_sdcard()
     if args.with_sdcard:
         soc.add_sdcard()
     builder = Builder(soc, **builder_argdict(args))
-    builder_kwargs = vivado_build_argdict(args) if args.toolchain == "vivado" else {}
-    builder.build(**builder_kwargs, run=args.build)
+
+    builder.build(**vivado_build_argdict(args), run=args.build)
 
     if args.load:
         prog = soc.platform.create_programmer()
