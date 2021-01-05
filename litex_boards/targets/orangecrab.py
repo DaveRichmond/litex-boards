@@ -60,13 +60,14 @@ class _CRG(Module):
             self.clock_domains.cd_usb_48 = ClockDomain()
             usb_pll = ECP5PLL()
             self.submodules += usb_pll
-            self.comb += usb_pll.reset.eq(~por_done | ~rst_n | self.rst)
+            self.comb += usb_pll.reset.eq(~por_done)
             usb_pll.register_clkin(clk48, 48e6)
             usb_pll.create_clkout(self.cd_usb_48, 48e6)
             usb_pll.create_clkout(self.cd_usb_12, 12e6)
 
-        # FPGA Reset (press usr_btn for 1 second to fallback to bootlooader)
-        reset_timer = WaitTimer(sys_clk_freq)
+        # FPGA Reset (press usr_btn for 1 second to fallback to bootloader)
+        reset_timer = WaitTimer(int(48e6))
+        reset_timer = ClockDomainsRenamer("por")(reset_timer)
         self.submodules += reset_timer
         self.comb += reset_timer.wait.eq(~rst_n)
         self.comb += platform.request("rst_n").eq(~reset_timer.done)
@@ -82,7 +83,6 @@ class _CRGSDRAM(Module):
         self.clock_domains.cd_sys2x_eb = ClockDomain(reset_less=True)
 
         # # #
-
 
         self.stop  = Signal()
         self.reset = Signal()
@@ -130,13 +130,14 @@ class _CRGSDRAM(Module):
             self.clock_domains.cd_usb_48 = ClockDomain()
             usb_pll = ECP5PLL()
             self.submodules += usb_pll
-            self.comb += usb_pll.reset.eq(~por_done | ~rst_n)
+            self.comb += usb_pll.reset.eq(~por_done)
             usb_pll.register_clkin(clk48, 48e6)
             usb_pll.create_clkout(self.cd_usb_48, 48e6)
             usb_pll.create_clkout(self.cd_usb_12, 12e6)
 
-        # FPGA Reset (press usr_btn for 1 second to fallback to bootlooader)
-        reset_timer = WaitTimer(sys_clk_freq)
+        # FPGA Reset (press usr_btn for 1 second to fallback to bootloader)
+        reset_timer = WaitTimer(int(48e6))
+        reset_timer = ClockDomainsRenamer("por")(reset_timer)
         self.submodules += reset_timer
         self.comb += reset_timer.wait.eq(~rst_n)
         self.comb += platform.request("rst_n").eq(~reset_timer.done)
