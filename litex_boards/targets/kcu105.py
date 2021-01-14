@@ -47,6 +47,7 @@ class _CRG(Module):
         pll.create_clkout(self.cd_pll4x, sys_clk_freq*4, buf=None, with_reset=False)
         pll.create_clkout(self.cd_idelay, 200e6, with_reset=False)
         pll.create_clkout(self.cd_eth,    200e6)
+        platform.add_false_path_constraints(self.cd_sys.clk, pll.clkin) # Ignore sys_clk to pll.clkin path created by SoC's rst.
 
         self.specials += [
             Instance("BUFGCE_DIV", name="main_bufgce_div",
@@ -62,7 +63,7 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=int(125e6), with_ethernet=False, with_etherbone=False, with_pcie=False, with_sata=False, **kwargs):
+    def __init__(self, sys_clk_freq=int(125e6), with_ethernet=False, with_etherbone=False, eth_ip="192.168.1.50", with_pcie=False, with_sata=False, **kwargs):
         platform = kcu105.Platform()
 
         # SoCCore ----------------------------------------------------------------------------------
@@ -102,7 +103,7 @@ class BaseSoC(SoCCore):
             if with_ethernet:
                 self.add_ethernet(phy=self.ethphy)
             if with_etherbone:
-                self.add_etherbone(phy=self.ethphy)
+                self.add_etherbone(phy=self.ethphy, ip_address=eth_ip)
 
         # PCIe -------------------------------------------------------------------------------------
         if with_pcie:
@@ -157,14 +158,15 @@ class BaseSoC(SoCCore):
 
 def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on KCU105")
-    parser.add_argument("--build",          action="store_true", help="Build bitstream")
-    parser.add_argument("--load",           action="store_true", help="Load bitstream")
-    parser.add_argument("--sys-clk-freq",   default=125e6,       help="System clock frequency (default: 125MHz)")
-    parser.add_argument("--with-ethernet",  action="store_true", help="Enable Ethernet support")
-    parser.add_argument("--with-etherbone", action="store_true", help="Enable Etherbone support")
-    parser.add_argument("--with-pcie",      action="store_true", help="Enable PCIe support")
-    parser.add_argument("--driver",         action="store_true", help="Generate PCIe driver")
-    parser.add_argument("--with-sata",      action="store_true", help="Enable SATA support (over SFP2SATA)")
+    parser.add_argument("--build",          action="store_true",              help="Build bitstream")
+    parser.add_argument("--load",           action="store_true",              help="Load bitstream")
+    parser.add_argument("--sys-clk-freq",   default=125e6,                    help="System clock frequency (default: 125MHz)")
+    parser.add_argument("--with-ethernet",  action="store_true",              help="Enable Ethernet support")
+    parser.add_argument("--with-etherbone", action="store_true",              help="Enable Etherbone support")
+    parser.add_argument("--eth-ip",         default="192.168.1.50", type=str, help="Ethernet/Etherbone IP address")
+    parser.add_argument("--with-pcie",      action="store_true",              help="Enable PCIe support")
+    parser.add_argument("--driver",         action="store_true",              help="Generate PCIe driver")
+    parser.add_argument("--with-sata",      action="store_true",              help="Enable SATA support (over SFP2SATA)")
     builder_args(parser)
     soc_sdram_args(parser)
     args = parser.parse_args()
@@ -174,6 +176,7 @@ def main():
         sys_clk_freq   = int(float(args.sys_clk_freq)),
         with_ethernet  = args.with_ethernet,
         with_etherbone = args.with_etherbone,
+        eth_ip         = args.eth_ip,
         with_pcie      = args.with_pcie,
         with_sata      = args.with_sata,
         **soc_sdram_argdict(args)

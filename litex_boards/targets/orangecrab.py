@@ -39,7 +39,8 @@ class _CRG(Module):
 
         # Clk / Rst
         clk48 = platform.request("clk48")
-        rst_n = platform.request("usr_btn")
+        rst_n = platform.request("usr_btn", loose=True)
+        if rst_n is None: rst_n = 1
 
         # Power on reset
         por_count = Signal(16, reset=2**16-1)
@@ -80,7 +81,6 @@ class _CRGSDRAM(Module):
         self.clock_domains.cd_sys      = ClockDomain()
         self.clock_domains.cd_sys2x    = ClockDomain()
         self.clock_domains.cd_sys2x_i  = ClockDomain(reset_less=True)
-        self.clock_domains.cd_sys2x_eb = ClockDomain(reset_less=True)
 
         # # #
 
@@ -89,7 +89,8 @@ class _CRGSDRAM(Module):
 
         # Clk / Rst
         clk48 = platform.request("clk48")
-        rst_n = platform.request("usr_btn")
+        rst_n = platform.request("usr_btn", loose=True)
+        if rst_n is None: rst_n = 1
 
         # Power on reset
         por_count = Signal(16, reset=2**16-1)
@@ -150,12 +151,11 @@ class BaseSoC(SoCCore):
         platform = orangecrab.Platform(revision=revision, device=device ,toolchain=toolchain)
 
         # Serial -----------------------------------------------------------------------------------
-        if kwargs["uart_name"] == "usb_acm":
-            # FIXME: do proper install of ValentyUSB.
+        if kwargs["uart_name"] in ["serial", "usb_acm"]:
+            kwargs["uart_name"] = "usb_acm"
+            # Defaults to USB ACM through ValentyUSB.
             os.system("git clone https://github.com/litex-hub/valentyusb -b hw_cdc_eptri")
             sys.path.append("valentyusb")
-        else:
-            platform.add_extension(orangecrab.feather_serial)
 
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, sys_clk_freq,
@@ -182,6 +182,7 @@ class BaseSoC(SoCCore):
             self.submodules.ddrphy = ECP5DDRPHY(
                 pads         = ddram_pads,
                 sys_clk_freq = sys_clk_freq,
+                cmd_delay    = 0 if sys_clk_freq > 64e6 else 100,
                 dm_remapping = {0:1, 1:0})
             self.ddrphy.settings.rtt_nom = "disabled"
             self.add_csr("ddrphy")
