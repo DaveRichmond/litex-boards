@@ -1,4 +1,9 @@
-#!/usr/bin/env python3
+#
+# This file is part of LiteX-Boards.
+#
+# Copyright (c) 2020 Pepijn de Vos <pepijndevos@gmail.com>
+# Copyright (c) 2021 Florent Kermarrec <florent@enjoy-digital.fr>
+# SPDX-License-Identifier: BSD-2-Clause
 
 from migen import *
 
@@ -10,8 +15,9 @@ from litex.build.openfpgaloader import OpenFPGALoader
 
 _io = [
     # Clk / Rst
-    ("clk12", 0, Pins("35"), IOStandard("LVCMOS33")),
-    ("rst",   0, Pins("77"), IOStandard("LVCMOS33")),
+    ("clk12",  0, Pins("35"), IOStandard("LVCMOS33")),
+    ("clk100", 0, Pins("63"), IOStandard("LVCMOS33")),
+    ("rst_n",  0, Pins("77"), IOStandard("LVCMOS33")),
 
     # Leds
     ("user_led", 0, Pins("86"), IOStandard("LVCMOS33")),
@@ -26,7 +32,7 @@ _io = [
     # Serial
     ("serial", 0,
         Subsignal("tx", Pins("15"), IOStandard("LVCMOS33")),
-        Subsignal("rx", Pins("16"), IOStandard("LVCMOS33"))
+        Subsignal("rx", Pins("16"), IOStandard("LVCMOS33")),
     ),
 
     # SPIFlash
@@ -38,6 +44,12 @@ _io = [
         Subsignal("wp",   Pins("54"), IOStandard("LVCMOS33")),
         Subsignal("hold", Pins("50"), IOStandard("LVCMOS33")),
     ),
+    ("spiflash4x", 0,
+        Subsignal("cs_n", Pins("51")),
+        Subsignal("clk",  Pins("49")),
+        Subsignal("dq",   Pins("48 53 54 50")),
+        IOStandard("LVCMOS33")
+    ),
 
     # SPIFlash (FTDI Chip)
     ("spiflash", 1,
@@ -46,6 +58,18 @@ _io = [
         Subsignal("miso", Pins("14"), IOStandard("LVCMOS33")),
         Subsignal("mosi", Pins("15"), IOStandard("LVCMOS33")),
     ),
+
+    # SDRAM (embedded in SIP, requires specific IO naming)
+    ("O_sdram_clk",   0, Pins(1),  IOStandard("LVCMOS33")),
+    ("O_sdram_cke",   0, Pins(1),  IOStandard("LVCMOS33")),
+    ("O_sdram_cs_n",  0, Pins(1),  IOStandard("LVCMOS33")),
+    ("O_sdram_cas_n", 0, Pins(1),  IOStandard("LVCMOS33")),
+    ("O_sdram_ras_n", 0, Pins(1),  IOStandard("LVCMOS33")),
+    ("O_sdram_wen_n", 0, Pins(1),  IOStandard("LVCMOS33")),
+    ("O_sdram_dqm",   0, Pins(2),  IOStandard("LVCMOS33")),
+    ("O_sdram_addr",  0, Pins(12), IOStandard("LVCMOS33")),
+    ("O_sdram_ba",    0, Pins(2),  IOStandard("LVCMOS33")),
+    ("IO_sdram_dq",   0, Pins(16), IOStandard("LVCMOS33")),
 ]
 
 # Connectors ---------------------------------------------------------------------------------------

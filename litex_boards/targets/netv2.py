@@ -62,8 +62,8 @@ class _CRG(Module):
 # BaseSoC ------------------------------------------------------------------------------------------
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=int(100e6), with_pcie=False, with_ethernet=False, **kwargs):
-        platform = netv2.Platform()
+    def __init__(self, variant="a7-35", sys_clk_freq=int(100e6), with_pcie=False, with_ethernet=False, **kwargs):
+        platform = netv2.Platform(variant=variant)
 
         # SoCCore ----------------------------------------------------------------------------------
         SoCCore.__init__(self, platform, sys_clk_freq,
@@ -105,7 +105,7 @@ class BaseSoC(SoCCore):
                 data_width = 128,
                 bar0_size  = 0x20000)
             self.add_csr("pcie_phy")
-            self.add_pcie(phy=self.pcie_phy, ndmas=1)
+            self.add_pcie(phy=self.pcie_phy, ndmas=1, max_pending_requests=2)
 
         # Leds -------------------------------------------------------------------------------------
         self.submodules.leds = LedChaser(
@@ -119,24 +119,26 @@ def main():
     parser = argparse.ArgumentParser(description="LiteX SoC on NeTV2")
     parser.add_argument("--build",           action="store_true", help="Build bitstream")
     parser.add_argument("--load",            action="store_true", help="Load bitstream")
+    parser.add_argument("--variant",         default="a7-35",     help="Board variant: a7-35 (default) or a7-100")
     parser.add_argument("--sys-clk-freq",    default=100e6,       help="System clock frequency (default: 100MHz)")
     parser.add_argument("--with-ethernet",   action="store_true", help="Enable Ethernet support")
     parser.add_argument("--with-pcie",       action="store_true", help="Enable PCIe support")
     parser.add_argument("--driver",          action="store_true", help="Generate PCIe driver")
-    parser.add_argument("--with-spi-sdcard", action="store_true", help="Enable SPI-mode SDCard support")
-    parser.add_argument("--with-sdcard",     action="store_true", help="Enable SDCard support")
+    sdopts = parser.add_mutually_exclusive_group()
+    sdopts.add_argument("--with-spi-sdcard", action="store_true", help="Enable SPI-mode SDCard support")
+    sdopts.add_argument("--with-sdcard",     action="store_true", help="Enable SDCard support")
 
     builder_args(parser)
     soc_sdram_args(parser)
     args = parser.parse_args()
 
     soc = BaseSoC(
+        variant       = args.variant,
         sys_clk_freq  = int(float(args.sys_clk_freq)),
         with_ethernet = args.with_ethernet,
         with_pcie     = args.with_pcie,
         **soc_sdram_argdict(args)
     )
-    assert not (args.with_spi_sdcard and args.with_sdcard)
     if args.with_spi_sdcard:
         soc.add_spi_sdcard()
     if args.with_sdcard:
