@@ -16,11 +16,6 @@ _io = [
     ("clk50", 2, Pins("N15"), IOStandard("1.5 V")), # DDR3 Clock
     ("clk10", 0, Pins("M9"),  IOStandard("2.5 V")),
 
-    ("serial", 0, 
-        Subsignal("tx", Pins("W18")),
-        Subsignal("rx", Pins("Y18")),
-        IOStandard("3.3-V LVTTL")),
-
     # Buttons
     ("user_btn", 0, Pins("H21"), IOStandard("1.5 V Schmitt Trigger")),
     ("user_btn", 1, Pins("H22"), IOStandard("1.5 V Schmitt Trigger")),

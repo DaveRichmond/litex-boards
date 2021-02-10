@@ -42,6 +42,10 @@ class BaseSoC(SoCCore):
     def __init__(self, sys_clk_freq=int(50e6), with_ethernet=False, with_etherbone=False, eth_ip="192.168.1.50", **kwargs):
         platform = deca.Platform()
 
+        # As we have no USB-UART, we must use the jtag uart
+        if kwargs["uart_name"] == "serial":
+            kwargs["uart_name"] = "jtag_atlantic"
+
         # SoCCore ----------------------------------------------------------
         SoCCore.__init__(self, platform, sys_clk_freq,
                 ident = "LiteX SoC on Terasic DECA",
