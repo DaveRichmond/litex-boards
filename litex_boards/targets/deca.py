@@ -21,6 +21,8 @@ from litex.soc.integration.soc_sdram import *
 from litex.soc.integration.builder import *
 from litex.soc.cores.led import LedChaser
 
+from liteeth.phy.mii import LiteEthPHYMII
+
 # CRG -----------------------------------------------------------------------
 class _CRG(Module):
     def __init__(self, platform, sys_clk_freq):
@@ -37,8 +39,9 @@ class _CRG(Module):
         pll.create_clkout(self.cd_sys_ps, sys_clk_freq, phase=90)
 
 class BaseSoC(SoCCore):
-    def __init__(self, sys_clk_freq=int(50e6), **kwargs):
+    def __init__(self, sys_clk_freq=int(50e6), with_ethernet=False, with_etherbone=False, eth_ip="192.168.1.50", **kwargs):
         platform = deca.Platform()
+
         # SoCCore ----------------------------------------------------------
         SoCCore.__init__(self, platform, sys_clk_freq,
                 ident = "LiteX SoC on Terasic DECA",
@@ -47,6 +50,17 @@ class BaseSoC(SoCCore):
 
         # CRG --------------------------------------------------------------
         self.submodules.crg = _CRG(platform, sys_clk_freq)
+
+        # Ethernet/Etherbone
+        if with_ethernet or with_etherbone:
+            self.submodules.ethphy = LiteEthPHYMII(
+                    clock_pads = self.platform.request("eth_clocks"),
+                    pads = self.platform.request("eth"))
+            self.add_csr("ethphy")
+            if with_ethernet:
+                self.add_ethernet(phy=self.ethphy)
+            if with_ethernet:
+                self.add_etherbone(phy=self.ethphy, ip_address=eth_ip)
 
         # LEDs -------------------------------------------------------------
         self.submodules.leds = LedChaser(
@@ -60,12 +74,19 @@ def main():
     parser.add_argument("--build", action="store_true", help="Build bitstream")
     parser.add_argument("--load", action="store_true", help="Load bitstream")
     parser.add_argument("--sys-clk_freq", default=50e6, help="System clock frequency (default 50MHz)")
+    ethopts = parser.add_mutually_exclusive_group()
+    ethopts.add_argument("--with-ethernet", action="store_true", help="Enable Ethernet support")
+    ethopts.add_argument("--with-etherbone", action="store_true", help="Enable Etherbone support")
+    parser.add_argument("--eth-ip", default="192.168.1.50", type=str, help="Ethernet/Etherbone IP address")
     builder_args(parser)
     soc_sdram_args(parser)
     args = parser.parse_args()
 
     soc = BaseSoC(
             sys_clk_freq = int(float(args.sys_clk_freq)),
+            with_ethernet = args.with_ethernet,
+            with_etherbone = args.with_etherbone,
+            eth_ip = args.eth_ip,
             **soc_sdram_argdict(args))
     #soc.platform.add_extension(deca._serial_bbb_io)
     builder = Builder(soc, **builder_argdict(args))
