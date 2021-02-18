@@ -2,7 +2,7 @@ from litex.build.generic_platform import *
 from litex.build.xilinx import XilinxPlatform, VivadoProgrammer
 
 _io = [
-    ("cpu_reset", 0, Pins("K5"), IOStandard("LVCMOS33")),
+    ("cpu_reset", 0, Pins("B7"), IOStandard("LVCMOS33")), # have to use the first switch on the user board because the switch on the mainboard conflicts with the sdcard
     ("clk50", 0, Pins("N11"), IOStandard("LVCMOS33")),
 
     ("spiflash4x", 0, 
@@ -55,18 +55,24 @@ _io = [
     ("user_led", 2, Pins("R7"), IOStandard("LVCMOS33")),
     ("user_led", 3, Pins("T7"), IOStandard("LVCMOS33")),
     ("user_led", 4, Pins("R8"), IOStandard("LVCMOS33")),
-    ("user_btn", 0, Pins("B7"), IOStandard("LVCMOS33")),
-    ("user_btn", 1, Pins("M6"), IOStandard("LVCMOS33")),
-    ("user_btn", 2, Pins("N6"), IOStandard("LVCMOS33")),
-    ("user_btn", 3, Pins("R5"), IOStandard("LVCMOS33")),
-    ("user_btn", 4, Pins("P6"), IOStandard("LVCMOS33")),
+    ("user_btn", 0, Pins("M6"), IOStandard("LVCMOS33")),
+    ("user_btn", 1, Pins("N6"), IOStandard("LVCMOS33")),
+    ("user_btn", 2, Pins("R5"), IOStandard("LVCMOS33")),
+    ("user_btn", 3, Pins("P6"), IOStandard("LVCMOS33")),
 
     ("sdcard", 0,
-            Subsignal("data", Pins("B5 B6 J4 J5")),
-            Subsignal("cmd", Pins("K5")),
+            Subsignal("data", Pins("B5 B6 J4 J5"), Misc("PULLUP True")),
+            Subsignal("cmd", Pins("K5"), Misc("PULLUP True")),
             Subsignal("clk", Pins("E6")),
             Subsignal("cd", Pins("A7")),
             IOStandard("LVCMOS33"), Misc("SLEW=FAST")),
+    ("spisdcard", 0,
+            Subsignal("clk", Pins("E6")),
+            Subsignal("mosi", Pins("K5"), Misc("PULLUP True")),
+            Subsignal("cs_n", Pins("J5"), Misc("PULLUP True")),
+            Subsignal("miso", Pins("B5"), Misc("PULLUP True")),
+            Misc("SLEW=FAST"),
+            IOStandard("LVCMOS33")),
 
     ("serial", 0, 
             Subsignal("tx", Pins("T14")),
@@ -104,8 +110,8 @@ _io = [
 class Platform(XilinxPlatform):
     default_clk_name = "clk50"
     default_clk_period = 1e9/50e6
-    def __init__(self):
-        XilinxPlatform.__init__(self, "xc7a35tftg256-1", _io, toolchain="vivado")
+    def __init__(self, toolchain="vivado"):
+        XilinxPlatform.__init__(self, "xc7a35tftg256-1", _io, toolchain=toolchain)
         self.toolchain.bitstream_commands = \
             ["set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 4 [current_design]"]
         self.toolchain.additional_commands = \
@@ -114,9 +120,9 @@ class Platform(XilinxPlatform):
         self.add_platform_command("set_property INTERNAL_VREF 0.675 [get_iobanks 15]")
         self.add_platform_command("set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets eth_clocks_tx_IBUF]")
         # to allow litevideo to build...
-        self.toolchain.pre_synthesis_commands = \
-            ["set_param synth.elaboration.rodinMoreOptions "
-             "{{rt::set_parameter dissolveMemorySizeLimit 71168}}"]
+        #self.toolchain.pre_synthesis_commands = \
+        #    ["set_param synth.elaboration.rodinMoreOptions "
+        #     "{{rt::set_parameter dissolveMemorySizeLimit 71168}}"]
 
     def do_finalize(self, fragment):
         XilinxPlatform.do_finalize(self, fragment)
